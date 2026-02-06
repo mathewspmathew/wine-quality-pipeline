@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+venv/
+env/
+
+# Models
+models/*.pkl
+!models/.gitkeep
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+test-results.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Docker
+*.tar.gz
+
+# Environment
+.env
