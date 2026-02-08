@@ -1,6 +1,5 @@
 """
-Wine Quality API - FastAPI Application
-
+Wine Quality API - FastAPI Application (SageMaker Compatible)
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -27,11 +26,7 @@ def home():
     return {
         "message": "Wine Quality Classifier API",
         "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "predict": "/predict",
-            "docs": "/docs"
-        }
+        "status": "running"
     }
 
 @app.get("/health")
@@ -41,6 +36,14 @@ def health():
         "status": "healthy" if model_exists else "unhealthy",
         "model_loaded": model_exists
     }
+
+@app.get("/ping")
+def ping():
+    """SageMaker health check endpoint"""
+    model_exists = os.path.exists('models/wine_model.pkl')
+    if not model_exists:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    return {"status": "healthy"}
 
 @app.post("/predict", response_model=PredictionResponse)
 def make_prediction(request: PredictionRequest):
@@ -60,5 +63,10 @@ def make_prediction(request: PredictionRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/invocations")
+def invocations(request: PredictionRequest):
+    """SageMaker inference endpoint"""
+    return make_prediction(request)
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

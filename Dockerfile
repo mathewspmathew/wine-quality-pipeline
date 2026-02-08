@@ -1,33 +1,40 @@
-# Use official Python runtime as base image
+# Use Python base image
 FROM python:3.11-slim
-
-# Set working directory
-WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc \
+    nginx \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for layer caching)
+# Set working directory
+WORKDIR /opt/ml
+
+# Copy requirements
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY src/ ./src/
-COPY models/ ./models/
+COPY src/ ./code/src/
+COPY models/ ./code/models/
 
-# Train model if it doesn't exist
+# Train model
+WORKDIR /opt/ml/code
 RUN python -m src.train || true
 
+# Create serve script for SageMaker
+RUN echo '#!/bin/bash\n\
+cd /opt/ml/code\n\
+uvicorn src.app:app --host 0.0.0.0 --port 8080' > /opt/ml/code/serve && \
+    chmod +x /opt/ml/code/serve
+
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+# Set environment variables
+ENV PYTHONUNBUFFERED=TRUE
 
-# Run the application
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# SageMaker uses /opt/ml/code/serve to start the service
+ENTRYPOINT ["/opt/ml/code/serve"]
